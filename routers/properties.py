@@ -4,7 +4,7 @@ from sqlalchemy import func
 from db.session import get_db_session
 from models.properties import Property, PropertyStatus
 from schemas.properties import PropertyUpdate, PropertyOut, GeoJSONResponse, PaginatedGeoJSONResponse, PropertyStatusCounts
-from utils.property import convert_properties_to_geojson
+from adminutils.property import convert_properties_to_geojson
 from typing import List
 import logging
 

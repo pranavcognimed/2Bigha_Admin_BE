@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from sqlalchemy import text
 from schemas.user import Token
 from db.session import get_db_session
-from utils.auth import (
+from adminutils.auth import (
     hash_password,
     create_jwt_token,
     create_access_token,
