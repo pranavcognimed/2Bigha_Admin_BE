@@ -24,7 +24,9 @@ def update_property_status(
     # Update the property's status and flag_reason
     db_property.status = property_update.status
     db_property.flag_reason = property_update.flag_reason
-
+    if property_update.status == "approved":
+        db_property.verified = True 
+        
     db.commit()
     db.refresh(db_property)
     return db_property

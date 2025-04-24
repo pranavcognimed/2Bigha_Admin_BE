@@ -85,6 +85,7 @@ def convert_properties_to_geojson(properties: List[Property]) -> GeoJSONResponse
                 user_uploaded=prop.user_uploaded,
                 phone=prop.phone,
                 email=prop.email,
+                flag_reason=prop.flag_reason,
                 centroid=PointGeometry(
                     type="Point",
                     coordinates=[centroid_coordinates[0], centroid_coordinates[1]]
