@@ -15,7 +15,8 @@ class PropertyStatus(str, enum.Enum):  # Note: Use enum.Enum, not Enum
     approved = "approved"
     disapproved = "disapproved"
     flagged = "flagged"
-
+    draft = "draft"
+    
 class PropertyImage(Base):
     __tablename__ = 'property_images'
 
