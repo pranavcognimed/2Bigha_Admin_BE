@@ -1,14 +1,24 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Form, Response, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Form, Response, Request, WebSocket, status
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from db.session import get_db_session
-from models.properties import Property, PropertyStatus
-from schemas.properties import PropertyUpdate, PropertyOut, GeoJSONResponse, PaginatedGeoJSONResponse, PropertyStatusCounts
+from models.properties import Property ,PropertyStatus,Notification
+from models.user import User
+from fastapi.responses import HTMLResponse
+from schemas.properties import PropertyUpdate, PropertyOut, GeoJSONResponse, PaginatedGeoJSONResponse, PropertyStatusCounts, PropertyStatusNotification, UserPropertyResponse
 from adminutils.property import convert_properties_to_geojson
-from typing import List
+from adminutils.auth import get_current_user
+from datetime import datetime
+from typing import List, Set, Dict
 import logging
 
 router = APIRouter()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 @router.patch("/admin/properties/{property_id}", response_model=PropertyUpdate)
 def update_property_status(
@@ -25,11 +35,59 @@ def update_property_status(
     db_property.status = property_update.status
     db_property.flag_reason = property_update.flag_reason
     if property_update.status == "approved":
-        db_property.verified = True 
-        
+        db_property.verified = True
+
     db.commit()
     db.refresh(db_property)
     return db_property
+
+@router.post("/admin/properties/{property_id}/status")
+async def update_property_status(
+    property_id: int,
+    property_update: PropertyUpdate,
+    db: Session = Depends(get_db_session)
+):
+    """
+    Update the status of a property and create a notification for the user.
+    Admin-only endpoint.
+    """
+
+    try:
+        # Fetch the property
+        db_property = db.query(Property).filter(Property.id == property_id).first()
+        if not db_property:
+            raise HTTPException(status_code=404, detail="Property not found")
+        
+        # Store old status for comparison
+        old_status = db_property.status
+
+        # Update the property's status and flag_reason
+        db_property.status = property_update.status
+        db_property.flag_reason = property_update.flag_reason
+        if property_update.status == "approved":
+            db_property.verified = True
+
+        # Create a notification if status changed
+        if old_status != property_update.status:
+            notification = Notification(
+                user_id=db_property.user_id,
+                property_id=db_property.id,
+                status_change_from=old_status,
+                status_change_to=property_update.status,
+                created_at=datetime.utcnow()
+            )
+            db.add(notification)
+            logging.info(f"Created notification for property {property_id}: {old_status} -> {property_update.status}")
+        
+        db.commit()
+        db.refresh(db_property)
+            
+        return {"detail": "Property status updated successfully"}
+        
+    except Exception as e:
+        db.rollback()
+        logging.error(f"Error updating property status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update property status: {str(e)}")
 
 def get_properties_by_status(
     status: PropertyStatus,

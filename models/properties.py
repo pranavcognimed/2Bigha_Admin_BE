@@ -1,14 +1,14 @@
 from sqlalchemy import (
     Column, Integer, String, Text, Boolean, Date, Enum,
-    TIMESTAMP, DECIMAL, ForeignKey, Identity, func
+    TIMESTAMP, DECIMAL, ForeignKey, Identity, func, DateTime
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, backref
 from geoalchemy2 import Geography
 from sqlalchemy.ext.declarative import declarative_base
+from models import Base
+from datetime import datetime
 import enum
-
-Base = declarative_base()
 
 class PropertyStatus(str, enum.Enum):  # Note: Use enum.Enum, not Enum
     pending = "pending"
@@ -16,7 +16,7 @@ class PropertyStatus(str, enum.Enum):  # Note: Use enum.Enum, not Enum
     disapproved = "disapproved"
     flagged = "flagged"
     draft = "draft"
-    
+
 class PropertyImage(Base):
     __tablename__ = 'property_images'
 
@@ -26,6 +26,19 @@ class PropertyImage(Base):
     uploaded_at = Column(TIMESTAMP, server_default=func.now())
 
     property = relationship("Property", back_populates="images")
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False, index=True)
+    property_id = Column(Integer, ForeignKey("properties.id"), nullable=False, index=True)
+    status_change_from = Column(Enum(PropertyStatus), nullable=False)
+    status_change_to = Column(Enum(PropertyStatus), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    user = relationship("User", back_populates="notifications")
+    property = relationship("Property", back_populates="notifications")
 
 class Property(Base):
     __tablename__ = 'properties'
@@ -61,7 +74,8 @@ class Property(Base):
     user_uploaded = Column(Boolean, default=False)
     phone = Column(String(20))
     email = Column(String(255))
-
+    user_id = Column(Integer, ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
     images = relationship("PropertyImage", back_populates="property")
+    notifications = relationship("Notification", back_populates="property")
     # favorited_by = relationship("FavoriteProperty", back_populates="property")
 

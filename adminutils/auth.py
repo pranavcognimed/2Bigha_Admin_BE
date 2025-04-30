@@ -1,13 +1,14 @@
 from fastapi import UploadFile
 import json
 from passlib.context import CryptContext
-from jose import jwt
+from jose import jwt, JWTError
 import random
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
-from fastapi import BackgroundTasks, HTTPException, status
+from fastapi import BackgroundTasks, HTTPException, status,Depends
+from fastapi.security import OAuth2PasswordBearer
+from db.session import get_db_session
 from core.config import settings
 from typing import List
-from jose import jwt
 import bcrypt
 import smtplib
 from sqlalchemy.orm import Session
@@ -20,7 +21,12 @@ import re
 import ssl
 import os
 from models.user import User
+from schemas.user import TokenData
 from datetime import datetime, timedelta
+
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/admin/login")
 
 OTP_EXPIRY_SECONDS = int(os.getenv("OTP_EXPIRY_SECONDS", 300))  # OTP expiry time in seconds (e.g., 5 minutes)
 
@@ -187,3 +193,29 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode.update({"exp": expire.timestamp()})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
+
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    print("######")
+    # logging.info(token)
+    print(token)
+    if not token :
+        return None
+     
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: int = payload.get("user_id")
+        print(user_id)
+        if user_id is None:
+            raise credentials_exception
+            return None
+        token_data = TokenData(user_id=user_id)
+        return token_data.user_id
+    except JWTError:
+        raise credentials_exception
+        return None

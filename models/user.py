@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, TIMESTAMP, func
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, TIMESTAMP, func, Enum, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
+from models import Base, PropertyStatus
+from datetime import datetime
 
 class User(Base):
     __tablename__ = "users"
@@ -11,9 +11,11 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     phone_number = Column(String, unique=True, index=True, nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
     profile = relationship("UserProfile", back_populates="user", uselist=False)
     roles = relationship("UserRoleLink", back_populates="user")
-    created_at = Column(TIMESTAMP, server_default=func.now())
+    notifications = relationship("Notification", back_populates="user")
 
 class UserProfile(Base):
     __tablename__ = "user_profile"
@@ -23,9 +25,11 @@ class UserProfile(Base):
     email_verified = Column(Boolean, default=False)
     first_name = Column(String(100))
     last_name = Column(String(100))
-    user = relationship("User", back_populates="profile")
     active = Column(Boolean, default=True)
     phone_verified = Column(Boolean, default=False)
+
+    user = relationship("User", back_populates="profile")
+
     
 class Role(Base):
     __tablename__ = "roles"

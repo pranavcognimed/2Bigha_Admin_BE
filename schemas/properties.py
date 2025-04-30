@@ -13,8 +13,8 @@ class PropertyStatus(str, Enum):
     flagged = "flagged"
 
 class PointGeometry(BaseModel):
-    type: Literal["Point"]
-    coordinates: List[float]  # [longitude, latitude]
+    type: Optional[Literal["Point"]] = "Point"
+    coordinates: Optional[List[float]] = Field(None, description="[longitude, latitude]")
 
     @validator("coordinates")
     def validate_coordinates(cls, v):
@@ -32,18 +32,18 @@ class PropertyImage(BaseModel):
         orm_mode = True
 
 class PolygonGeometry(BaseModel):
-    type: Literal["Polygon"]
-    coordinates: List[List[List[float]]]  # [[[longitude, latitude], ...]]
+    type: Optional[Literal["Polygon"]] = "Polygon"
+    coordinates: Optional[List[List[List[float]]]] = Field(None, description="[[[longitude, latitude], ...]]")
 
-    @validator("coordinates")
-    def validate_polygon_coordinates(cls, v):
-        if not v or len(v) < 1 or len(v[0]) < 3:
-            raise ValueError("Polygon must have at least one ring with 3+ points")
-        for ring in v:
-            for point in ring:
-                if len(point) != 2:
-                    raise ValueError("Each polygon point must be [longitude, latitude]")
-        return v
+    # @validator("coordinates")
+    # def validate_polygon_coordinates(cls, v):
+    #     if not v or len(v) < 1 or len(v[0]) < 3:
+    #         raise ValueError("Polygon must have at least one ring with 3+ points")
+    #     for ring in v:
+    #         for point in ring:
+    #             if len(point) != 2:
+    #                 raise ValueError("Each polygon point must be [longitude, latitude]")
+    #     return v
 
 class Properties(BaseModel):
     id: int
@@ -70,16 +70,57 @@ class Properties(BaseModel):
     visits: Optional[int] = Field(None, description="Number of visits to the property")
     created_at: Optional[datetime] = Field(None, description="Timestamp when the property was created")
     updated_at: Optional[datetime] = Field(None, description="Timestamp when the property was last updated")
-    status: Optional[PropertyStatus] = Field(None, description="Status of the property")
+    status: Optional[str] = Field(None, description="Status of the property")  # Assuming PropertyStatus is a string enum
     flag_reason: Optional[str] = Field(None, description="Reason for flagging the property")
     user_uploaded: Optional[bool] = Field(None, description="Whether the property was uploaded by a user")
     phone: Optional[str] = Field(None, description="Phone number of the owner")
     email: Optional[EmailStr] = Field(None, description="Email of the owner")
-    # images: List[PropertyImage] = Field(default_factory=list, description="List of property images")
 
     class Config:
         orm_mode = True
         allow_population_by_field_name = True
+
+# Pydantic model for notification payload
+class PropertyStatusNotification(BaseModel):
+    property_id: int
+    property_name: str
+    old_status: str
+    new_status: str
+    updated_at: datetime
+    message: str
+
+class PropertyImageResponse(BaseModel):
+    id: int
+    image_base64: str
+    uploaded_at: datetime
+
+    class Config:
+        orm_mode = True      
+
+class PropertyResponse(BaseModel):
+    id: int
+    owner_name: str
+    email: str
+    phone: str
+    price: str
+    size: str
+    unit: str
+    property_type: str
+    state: str
+    city: str
+    location: str
+    murabba_number: str
+    khasra_number: str
+    khewat_number: str
+    landmark: str
+    boundary_json: dict | None = None
+    listed_date: datetime | None
+    created_at: datetime | None
+    updated_at: datetime | None
+    images: List[PropertyImageResponse] = []
+
+    class Config:
+        orm_mode = True
 
 class PropertyUpdate(BaseModel):
     status: PropertyStatus
@@ -144,3 +185,9 @@ class PropertyStatusCounts(BaseModel):
     flagged: int = Field(..., description="Number of flagged properties")
     pending: int = Field(..., description="Number of pending properties")
     draft: int = Field(..., description="Number of draft properties")
+
+
+
+class UserPropertyResponse(Properties):
+    images: Optional[List[str]] = Field([], description="List of image URLs or base64 strings")
+    geometry: Optional[PolygonGeometry] = Field(..., description="GeoJSON Polygon geometry of the property")
